@@ -36,7 +36,7 @@ class ArenaGame{
  constructor(){this.muted=false;this.events=[];this.reset(false);}
  emit(type,data={}){this.events.push({type,t:this.s.elapsed,...data});}
  reset(play=true){
-  this.events=[];this.s={phase:play?'playing':'title',paused:false,hp:2600,maxHp:2600,hearts:3,time:75,elapsed:0,wallElapsed:0,gorillaPhase:1,gauge:0,stun:0,dizzy:0,destruction:0,combo:0,maxCombo:0,hits:0,counters:0,damage:0,misses:0,aggro:0,invincible:0,flat:0,hitstop:0,slow:0,slowScale:1,transition:0,transitionPhase:0,finishTime:0,result:null,phaseAttacks:0,treeWeapon:false,treeSource:null,cracks:0,rimCollapsed:false,cooldowns:{dash:0,slap:0,cannon:0},attack:null,orbit:null,projectiles:[],waves:[],lastDamage:null,lastHit:null,history:[],peakTravel:0};
+  this.events=[];this.s={phase:play?'playing':'title',paused:false,hp:2600,maxHp:2600,hearts:3,time:75,elapsed:0,wallElapsed:0,gorillaPhase:1,gauge:0,stun:0,dizzy:0,destruction:0,combo:0,maxCombo:0,hits:0,counters:0,damage:0,misses:0,aggro:0,invincible:0,flat:0,orbitGrace:0,hitstop:0,slow:0,slowScale:1,transition:0,transitionPhase:0,finishTime:0,result:null,phaseAttacks:0,treeWeapon:false,treeSource:null,cracks:0,rimCollapsed:false,cooldowns:{dash:0,slap:0,cannon:0},attack:null,orbit:null,projectiles:[],waves:[],lastDamage:null,lastHit:null,history:[],peakTravel:0};
   this.g={x:0,z:0,y:0,facing:0,vx:0,vz:0,vy:0,mode:'idle',timer:1.7,recover:0,attackId:0,lockedFacing:0,chargeDir:null,chargeHit:false,double:false,launchCause:null};
   this.r={x:0,z:3.4,y:0,angle:0,face:Math.PI};this.props=[];
   for(let i=0;i<5;i++){let a=(i/5)*TAU+.3;this.props.push({id:'tree'+i,kind:'tree',x:Math.sin(a)*6.7,z:Math.cos(a)*6.7,hp:75,maxHp:75,alive:true,radius:.7});}
@@ -60,7 +60,7 @@ class ArenaGame{
   if(!Object.hasOwn(s.cooldowns,action)||s.cooldowns[action]>0)return false;
   const dir=direction(r,g);r.face=dir;
   s.attack={kind:action,t:0,duration:action==='dash'?.28:action==='slap'?.42:1.1,hit:false,dir,x:r.x,z:r.z};
-  if(action==='dash'){s.cooldowns.dash=.34;s.invincible=Math.max(s.invincible,.16);}
+  if(action==='dash'){s.cooldowns.dash=.34;s.invincible=Math.max(s.invincible,.3);}
   if(action==='slap')s.cooldowns.slap=1.2;
   this.emit('attackStart',{kind:action});return true;
  }
@@ -127,11 +127,11 @@ class ArenaGame{
   s.slow=Math.max(0,s.slow-realDt);const scale=s.slow>0?s.slowScale:1;let dt=realDt*scale;
   if(s.hitstop>0){s.hitstop=Math.max(0,s.hitstop-realDt);dt=0;}
   if(s.phase==='finishing'){s.finishTime+=realDt;g.y+=g.vy*dt;g.vy-=s.moon?2*dt:5*dt;g.x+=g.vx*dt;g.z+=g.vz*dt;if(s.finishTime>2.5){s.phase='result';this.emit('result',{reason:'win'});}return;}
-  s.elapsed+=dt;for(const k of ['aggro','invincible','flat'])s[k]=Math.max(0,s[k]-dt);for(const k of Object.keys(s.cooldowns))s.cooldowns[k]=Math.max(0,s.cooldowns[k]-dt);
+  s.elapsed+=dt;for(const k of ['aggro','invincible','flat','orbitGrace'])s[k]=Math.max(0,s[k]-dt);for(const k of Object.keys(s.cooldowns))s.cooldowns[k]=Math.max(0,s.cooldowns[k]-dt);
   if(s.comboTime>0){s.comboTime-=dt;if(s.comboTime<=0)s.combo=0;}
   if(s.transition>0){s.transition-=dt;if(s.transition<=0){g.mode='idle';g.timer=.75;}return;}
   const next=s.hp<=2600*.33?3:s.hp<=2600*.66?2:1;if(next>s.gorillaPhase){this.transition(s.gorillaPhase+1);return;}
-  if(s.orbit){const o=s.orbit;o.t+=dt;const k=clamp(o.t/o.duration,0,1),e=k*k*(3-2*k),a=o.start+o.delta*e;r.x=o.cx+Math.sin(a)*(o.radius+(3.4-o.radius)*e);r.z=o.cz+Math.cos(a)*(o.radius+(3.4-o.radius)*e);r.y=Math.sin(k*Math.PI)*.65;r.angle=a;r.face=direction(r,g);if(k===1){s.orbit=null;r.y=0;}}
+  if(s.orbit){const o=s.orbit;o.t+=dt;const k=clamp(o.t/o.duration,0,1),e=k*k*(3-2*k),a=o.start+o.delta*e;r.x=o.cx+Math.sin(a)*(o.radius+(3.4-o.radius)*e);r.z=o.cz+Math.cos(a)*(o.radius+(3.4-o.radius)*e);r.y=Math.sin(k*Math.PI)*.65;r.angle=a;r.face=direction(r,g);if(k===1){s.orbit=null;s.orbitGrace=.28;r.y=0;}}
   else if(!s.attack&&s.flat<=0){const a=direction(g,r),target={x:g.x+Math.sin(a)*3.4,z:g.z+Math.cos(a)*3.4};const d=dist(r,target),step=Math.min(d,dt*(g.mode==='knocked'||g.mode==='charge'?1.8:3.6));if(d>.001){r.x+=(target.x-r.x)*step/d;r.z+=(target.z-r.z)*step/d;}r.angle=direction(g,r);r.face=direction(r,g);r.y=0;}
   if(s.attack){const a=s.attack;a.t+=dt;
    if(a.kind==='dash'){const v=forward(a.dir),k=clamp(a.t/a.duration,0,1),travel=Math.sin(k*Math.PI)*2.1;r.x=a.x+v.x*travel;r.z=a.z+v.z*travel;r.y=Math.sin(k*Math.PI)*.35;
@@ -173,7 +173,7 @@ class ArenaGame{
   }
   if(s.dizzy>0){s.dizzy=Math.max(0,s.dizzy-dt);if(s.dizzy===0){s.stun=0;if(g.mode==='dizzy'){g.mode='recover';g.timer=.65;}}}
   else if(s.stun>0)s.stun=Math.max(0,s.stun-dt*3.5);
-  for(let i=s.waves.length-1;i>=0;i--){const w=s.waves[i],previous=w.radius;w.radius+=7*dt;const d=dist(w,r);if(!w.hit&&d>=previous-.45&&d<=w.radius+.45){w.hit=true;if(s.orbit){this.emit('waveDodge');this.log('waveDodge',{method:'orbit'});}else this.hurt('wave',w.id);}if(w.radius>18)s.waves.splice(i,1);}
+  for(let i=s.waves.length-1;i>=0;i--){const w=s.waves[i],previous=w.radius;w.radius+=5.6*dt;const d=dist(w,r);if(!w.hit&&d>=previous-.45&&d<=w.radius+.45){w.hit=true;if(s.orbit||s.orbitGrace>0){this.emit('waveDodge');this.log('waveDodge',{method:'orbit'});}else this.hurt('wave',w.id);}if(w.radius>18)s.waves.splice(i,1);}
   const rr=Math.hypot(r.x,r.z);if(rr>10.7){r.x*=10.7/rr;r.z*=10.7/rr;}r.angle=direction(g,r);
  }
  segmentDistance(p,a,b){const dx=b.x-a.x,dz=b.z-a.z,l=dx*dx+dz*dz,t=l?clamp(((p.x-a.x)*dx+(p.z-a.z)*dz)/l,0,1):0;return Math.hypot(p.x-a.x-dx*t,p.z-a.z-dz*t);}
@@ -272,7 +272,7 @@ function boot(THREE){
  new ResizeObserver(resize).observe($('stage'));window.addEventListener('resize',resize);resize();
  const zoneLabels={front:'正面！ 強打×1.35・反撃に注意',side:'横！ ダメージ×1.0・予告の外へ',back:'背後！ 強打×1.15＋ゲージ2倍'};
  function updateHUD(){const s=game.s,g=game.g;$('destruction').textContent=String(s.destruction).padStart(2,'0');$('hearts').textContent='♥'.repeat(s.hearts)+'♡'.repeat(3-s.hearts);$('hearts').setAttribute('aria-label','残りハート'+s.hearts);$('hpText').textContent=Math.ceil(s.hp);$('hpBar').style.width=(s.hp/2600*100)+'%';$('phaseLabel').textContent='ゴリラ / 第'+s.gorillaPhase+'形態';$('timer').innerHTML=Math.ceil(s.time)+'<small> 秒</small>';$('timer').classList.toggle('danger',s.time<=15);$('zone').textContent=zoneLabels[game.zone]+(s.dizzy>0?' / 気絶×1.5':s.aggro>0?' / 振り向き加速':'');$('zone').dataset.zone=game.zone;$('gaugeBar').style.width=s.gauge+'%';$('gaugeText').textContent=Math.floor(s.gauge)+'%';$('special').hidden=s.gauge<100;$('special').disabled=!!game.busy||!!s.orbit;$('stunBar').style.width=s.stun+'%';$('combo').textContent=s.combo+' COMBO';
-  const cues={slam:'赤い扇の外へ！',swing:'木の大振り！ 背後へ！',charge:'直線突進！ 横へまわろう！',wave:'衝撃波！ つっこみ or まわる！',double:g.double?'もう一発！ 油断しない！':'2連打！ 赤い扇から離れよう！'};$('enemyCue').textContent=g.mode==='tell'?cues[g.attackKind]||'':s.dizzy>0?'気絶中！ 残り'+s.dizzy.toFixed(1)+'秒':g.mode==='recover'?'起き上がりの隙！ ダメージ×1.2':'';
+  const cues={slam:'赤い扇の外へ！',swing:'木の大振り！ 背後へ！',charge:'直線突進！ 横へまわろう！',wave:'衝撃波！ つっこみ or まわる！',double:g.double?'もう一発！ 油断しない！':'2連打！ 赤い扇から離れよう！'};$('enemyCue').textContent=g.mode==='tell'?cues[g.attackKind]||'':s.dizzy>0?'気絶中！ 残り'+s.dizzy.toFixed(1)+'秒':g.mode==='recover'?'起き上がりの隙！ ダメージ×1.2':s.waves.length?'波が来る！ まわる or つっこみで避けろ！':'';
   for(const key of ['dash','slap','cannon']){const b=$(key),cd=s.cooldowns[key],duration=key==='dash'?.34:key==='slap'?1.2:2.5;const charging=key==='cannon'&&s.attack?.kind==='cannon';b.disabled=!!game.busy||!!s.orbit||cd>0;b.querySelector('.cool').style.transform='scaleY('+clamp(charging?1-s.attack.t/1.1:cd/duration,0,1)+')';}$('cannonHint').textContent=s.attack?.kind==='cannon'?'ため '+s.attack.t.toFixed(1)+' / 1.1秒':s.cooldowns.cannon>0?'あと '+s.cooldowns.cannon.toFixed(1)+'秒':'L · 1.1秒ためる';for(const id of ['left','right'])$(id).disabled=!!game.busy||!!s.orbit;
  }
  function visuals(dt){const s=game.s,g=game.g,r=game.r;viewTime+=dt;gorilla.position.set(g.x,g.y,g.z);gorilla.rotation.y=g.facing;gBody.rotation.set(0,0,0);if(g.mode==='knocked'||g.mode==='finale'){gBody.rotation.x=-viewTime*5;gBody.rotation.z=Math.sin(viewTime*5)*.25;}
